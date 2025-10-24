@@ -16,6 +16,12 @@ import enum
 # Recuerda que no se permite importar otros módulos/librerías a excepción de los creados
 # por ustedes o las ya incluidas en este main.py
 
+@dataclasses.dataclass
+class Transaccion:
+    bd: dict
+    nombre: str
+    estado: str
+
 def procesar_input(test: str) -> dict:
     with open(test, "r", encoding="utf-8") as f:
         lineas = f.read()
@@ -54,13 +60,15 @@ if __name__ == "__main__":
 
     tipo_validacion = instrucciones["VALIDATION"]
     servers = instrucciones["SERVERS"]
-    variables = instrucciones["DATA"]
+    base_datos = instrucciones["DATA"]
     operaciones = instrucciones["TRANSACTIONS"]
         
-    print(tipo_validacion)
+    """ print(tipo_validacion)
     print(servers)
-    print(variables)
-    print(operaciones)
+    print(base_datos)
+    print(operaciones) """
+
+    transacciones_activas = {}
 
     for operacion in operaciones:
         operacion = operacion.split(";")
@@ -77,28 +85,43 @@ if __name__ == "__main__":
                 # TODO
                 print(f" > Consulta: {comando} {nombre_var}")
         elif("T" in tipo_operacion):
+            transaccion = tipo_operacion
             # Comandos
             if(comando == "BEGIN"):
-                # TODO
-                print(f" - Comando: {comando}")
+                print(f" - [{transaccion}] Comando: {comando}")
+                if(transaccion in transacciones_activas):
+                    # Ya estaba iniciado, no hago nada
+                    continue
+                else:
+                    # Lo añado a activos
+                    nueva_transaccion = Transaccion(json.loads(json.dumps(base_datos)), transaccion, "ABIERTO")
+                    """ print(nueva_transaccion.nombre)
+                    print(nueva_transaccion.bd) """
+                    transacciones_activas[transaccion] = nueva_transaccion
             elif(comando == "WRITE"):
-                # TODO
                 argumentos = operacion[2].split(",")
                 nombre_var = argumentos[0]
                 valor_var = argumentos[1]
-                print(f" - Comando: {comando} {nombre_var} -> {valor_var}")
+                print(f" - [{transaccion}] Comando: {comando} {nombre_var} -> {valor_var}")
+                transaccion_actual = transacciones_activas[transaccion]
+                if(nombre_var in transaccion_actual.bd):
+                    if(nombre_var == "DELETE"):
+                        transaccion_actual.bd.pop(nombre_var)
+                    else:
+                        transaccion_actual.bd[nombre_var] = valor_var
+                # TODO: Lo relacionado a reflejarlo en la BD
             elif(comando == "READ"):
                 # TODO
                 nombre_var = operacion[2]
-                print(f" - Comando: {comando} {nombre_var}")
+                print(f" - [{transaccion}] Comando: {comando} {nombre_var}")
             elif(comando == "CAN_COMMIT"):
                 # TODO
                 nombre_servidor = operacion[2]
-                print(f" - Comando: {comando} servidor {nombre_servidor}")
+                print(f" - [{transaccion}] Comando: {comando} servidor {nombre_servidor}")
             elif(comando == "ABORT"):
                 # TODO
-                print(f" - Comando: {comando}")
+                print(f" - [{transaccion}] Comando: {comando}")
             elif(comando == "COMMIT"):
                 # TODO
-                print(f" - Comando: {comando}")
+                print(f" - [{transaccion}] Comando: {comando}")
 
