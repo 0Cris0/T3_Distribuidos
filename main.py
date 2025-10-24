@@ -98,22 +98,40 @@ if __name__ == "__main__":
                     """ print(nueva_transaccion.nombre)
                     print(nueva_transaccion.bd) """
                     transacciones_activas[transaccion] = nueva_transaccion
+
             elif(comando == "WRITE"):
                 argumentos = operacion[2].split(",")
                 nombre_var = argumentos[0]
                 valor_var = argumentos[1]
                 print(f" - [{transaccion}] Comando: {comando} {nombre_var} -> {valor_var}")
                 transaccion_actual = transacciones_activas[transaccion]
-                if(nombre_var in transaccion_actual.bd):
-                    if(nombre_var == "DELETE"):
+                if(transaccion_actual.estado == "EN_PREPARACION"):
+                    transaccion_actual.estado = "INVALIDA"
+                    continue
+                if(nombre_var == "DELETE"):
+                    if(nombre_var in transaccion_actual.bd):
                         transaccion_actual.bd.pop(nombre_var)
-                    else:
+                else:
                         transaccion_actual.bd[nombre_var] = valor_var
                 # TODO: Lo relacionado a reflejarlo en la BD
+            # TODO: Ver si en cada comando hago check si es INVALIDO -> Continue o no
             elif(comando == "READ"):
                 # TODO
                 nombre_var = operacion[2]
                 print(f" - [{transaccion}] Comando: {comando} {nombre_var}")
+                transaccion_actual = transacciones_activas[transaccion]
+                if(transaccion_actual.estado == "EN_PREPARACION"):
+                    transaccion_actual.estado = "INVALIDA"
+                    continue
+                if(nombre_var in transaccion_actual.bd):
+                    valor = transaccion_actual.bd[nombre_var]
+                    # TODO: Ver qué hacer acá
+                else:
+                    if(nombre_var in base_datos):
+                        valor = base_datos[nombre_var]
+                        # TODO: Ver qué hacer acá
+                    else:
+                        transaccion_actual.estado = "INVALIDA"
             elif(comando == "CAN_COMMIT"):
                 # TODO
                 nombre_servidor = operacion[2]
