@@ -94,12 +94,18 @@ if __name__ == "__main__":
                     continue
                 else:
                     # Lo añado a activos
-                    nueva_transaccion = Transaccion(json.loads(json.dumps(base_datos)), transaccion, "ABIERTO")
+                    nueva_transaccion = Transaccion(
+                        bd=json.loads(json.dumps(base_datos)),
+                        nombre=transaccion, 
+                        estado="ABIERTO"
+                        )
                     """ print(nueva_transaccion.nombre)
                     print(nueva_transaccion.bd) """
                     transacciones_activas[transaccion] = nueva_transaccion
 
             elif(comando == "WRITE"):
+                if(transaccion not in transacciones_activas): # Salto, no está iniciado
+                    continue
                 argumentos = operacion[2].split(",")
                 nombre_var = argumentos[0]
                 valor_var = argumentos[1]
@@ -116,7 +122,8 @@ if __name__ == "__main__":
                 # TODO: Lo relacionado a reflejarlo en la BD
             # TODO: Ver si en cada comando hago check si es INVALIDO -> Continue o no
             elif(comando == "READ"):
-                # TODO
+                if(transaccion not in transacciones_activas): # Salto, no está iniciado
+                    continue
                 nombre_var = operacion[2]
                 print(f" - [{transaccion}] Comando: {comando} {nombre_var}")
                 transaccion_actual = transacciones_activas[transaccion]
@@ -132,14 +139,42 @@ if __name__ == "__main__":
                         # TODO: Ver qué hacer acá
                     else:
                         transaccion_actual.estado = "INVALIDA"
+
             elif(comando == "CAN_COMMIT"):
+                if(transaccion not in transacciones_activas): # Salto, no está iniciado
+                    continue
+                if(transaccion_actual.estado == "EN_PREPARACION"):
+                    continue
                 # TODO
+                transaccion_actual = transacciones_activas[transaccion]
                 nombre_servidor = operacion[2]
                 print(f" - [{transaccion}] Comando: {comando} servidor {nombre_servidor}")
+                # TODO: validacion1 = Control de concurrencia
+                validacion1 = True
+                # TODO: validacion2 = 2PC
+                validacion2 = False
+                if(validacion1 and validacion2):
+                    # TODO: Proteger las variables
+                    print("Proteger vars")
+                    transaccion_actual.estado = "EN_PREPARACION"
+                condicion_forward = (not validacion1 and tipo_validacion == "forward")
+                condicion_2PC = (not validacion2)
+                if(condicion_forward or condicion_2PC):
+                    # TODO: Ver si esto esta bien
+                    continue
+                else:
+                    # TODO: Abortar Transaccion
+                    print("Abortando transaccion")
             elif(comando == "ABORT"):
+                if(transaccion not in transacciones_activas):
+                    # Salto, no está iniciado
+                    continue
                 # TODO
                 print(f" - [{transaccion}] Comando: {comando}")
             elif(comando == "COMMIT"):
+                if(transaccion not in transacciones_activas):
+                    # Salto, no está iniciado
+                    continue
                 # TODO
                 print(f" - [{transaccion}] Comando: {comando}")
 
