@@ -22,6 +22,20 @@ class Transaccion:
     nombre: str
     estado: str
 
+@dataclasses.dataclass
+class Servidor:
+    nombre: str
+    transacciones: dict # Idea de que sea Trans-name, bool_can_commit, abort???
+    var_reservadas: dict # Idea de 1resevar variables tal que (var, nombre_tas)
+""" Mi idea de momento para servidor, es crear esta Clase Servidor que tiene
+    - Nombre
+    - Transacciones
+    - Variables reservadas: dict
+    donde es un dict que tiene como key el nombre de una Tran Activa y su estado
+    cosa de poder decir que fue estado_base/abortada/ En_commit 
+    
+    Variables reservadas tal vez podría ser (var, transaccion_qu_la_reserva_nombre)"""
+
 def procesar_input(test: str) -> dict:
     with open(test, "r", encoding="utf-8") as f:
         lineas = f.read()
@@ -39,36 +53,41 @@ if __name__ == "__main__":
     # Completar con tu implementación o crea más archivos y funciones
     # print(argv)
     test = argv[1]
-
-    """ print("Un, dos, tres y...")
-    print("Mala")
-    print("Esta cuenta es mala")
-    print("Se cae la ventana")
-    print("No cuadra la tabla")
-    print("Mala")
-    print("Como fila muy larga")
-    print("Como clave olvidada")
-    print("Esta cuenta es mala")
-    print("Mala")
-    print("Como tasa muy alta")
-    print("Como deuda atrasada")
-    print("Como sistema caído")
-    print("Mala")
-    print("¡Pero es mía!") """
-
     instrucciones = procesar_input(test)
 
     tipo_validacion = instrucciones["VALIDATION"]
     servers = instrucciones["SERVERS"]
     base_datos = instrucciones["DATA"]
     operaciones = instrucciones["TRANSACTIONS"]
-        
-    """ print(tipo_validacion)
-    print(servers)
-    print(base_datos)
-    print(operaciones) """
 
     transacciones_activas = {}
+    servidores_activos = {}
+    
+    """ test1 = Transaccion({}, "test", "aaaa")
+    dicion = {f"{test}": test1.nombre, "estado": "EN_PROC"}
+    for servidor in servers:
+        servidores_activos[servidor] = Servidor(servidor, {}, {})
+        
+        servidores_activos[servidor].transacciones["test"] = json.loads(json.dumps(dicion))
+    dicion["estado"] = "AAAA"
+    servidores_activos["R2"].transacciones["test"]["estado"] = "NEOOOO"
+    for servidor in servidores_activos:
+        print(servidores_activos[servidor].transacciones) 
+        
+
+
+    Ver si esto funciona o no
+        """
+    
+    
+
+
+    for servidor in servers:
+        servidores_activos[servidor] = Servidor(
+            nombre=servidor, 
+            transacciones={}, 
+            var_reservadas={})
+
 
     for operacion in operaciones:
         operacion = operacion.split(";")
@@ -106,6 +125,8 @@ if __name__ == "__main__":
             elif(comando == "WRITE"):
                 if(transaccion not in transacciones_activas): # Salto, no está iniciado
                     continue
+                if(transaccion_actual.estado == "ABORTADA"):
+                    continue
                 argumentos = operacion[2].split(",")
                 nombre_var = argumentos[0]
                 valor_var = argumentos[1]
@@ -123,6 +144,8 @@ if __name__ == "__main__":
             # TODO: Ver si en cada comando hago check si es INVALIDO -> Continue o no
             elif(comando == "READ"):
                 if(transaccion not in transacciones_activas): # Salto, no está iniciado
+                    continue
+                if(transaccion_actual.estado == "ABORTADA"):
                     continue
                 nombre_var = operacion[2]
                 print(f" - [{transaccion}] Comando: {comando} {nombre_var}")
@@ -145,6 +168,8 @@ if __name__ == "__main__":
                     continue
                 if(transaccion_actual.estado == "EN_PREPARACION"):
                     continue
+                if(transaccion_actual.estado == "ABORTADA"):
+                    continue
                 # TODO
                 transaccion_actual = transacciones_activas[transaccion]
                 nombre_servidor = operacion[2]
@@ -165,15 +190,34 @@ if __name__ == "__main__":
                 else:
                     # TODO: Abortar Transaccion
                     print("Abortando transaccion")
+
             elif(comando == "ABORT"):
                 if(transaccion not in transacciones_activas):
                     # Salto, no está iniciado
                     continue
+                if(transaccion_actual.estado == "ABORTADA"):
+                    continue
                 # TODO
+                transaccion_actual = transacciones_activas[transaccion]
+                transaccion_actual.estado = "ABORTADA"
+                for servidor in servidores_activos.values():
+                    servidor.transacciones[transaccion_actual] = transaccion_actual.estado
+                    for var in servidor.var_reservadas:
+                        if( servidor.var_reservadas[var]==transaccion_actual.nombre):
+                            servidor.var_reservadas.pop(var)
+                            # Elimino del reservado
+                            # TODO: Ver si funciona
+                # Ver si funciona, en especial lo de no considerar, aunque creo que eso
+                # va en cCOMMIT
+
+
                 print(f" - [{transaccion}] Comando: {comando}")
+
             elif(comando == "COMMIT"):
                 if(transaccion not in transacciones_activas):
                     # Salto, no está iniciado
+                    continue
+                if(transaccion_actual.estado == "ABORTADA"):
                     continue
                 # TODO
                 print(f" - [{transaccion}] Comando: {comando}")
