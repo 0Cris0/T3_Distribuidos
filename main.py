@@ -210,6 +210,50 @@ def can_commit(transaccion: str, transacciones_activas: dict, servidores_activos
     else:
         abortar(servidores_activos, transaccion_actual)
 
+def commit(transaccion: str, transacciones_activas: dict, servidores_activos: dict)->None:
+    if(transaccion not in transacciones_activas):
+        # Salto, no está iniciado
+        return
+    transaccion_actual = transacciones_activas[transaccion]
+    if(transaccion_actual.estado == "ABORTADA"):
+        return
+    print(f" - [{transaccion}] Comando: {comando}")
+
+    contador = 0
+    for s_name in servidores_activos:
+        servidor = servidores_activos[s_name]
+        estado = servidor.transacciones[transaccion]
+        if(estado == "EN_PREPARACION"):
+            contador+=1
+    v1 = (contador >= len(servidores_activos)//2 + 1)
+    v2 = (transaccion_actual.estado != "INVALIDA")
+    v3 = True
+    # TODO: Implementar el backwars aquí = v3
+    if(v3 == False):
+        abortar(servidores_activos, transaccion_actual)
+    if(v1 == True and v2 == True and v3 == True):
+        for s_name in servidores_activos:
+            servidor = servidores_activos[s_name]
+            servidor.transacciones[transaccion] = "CONFIRMADA"
+            # TODO: Aplicar cambios a servidor
+            # : Chequeo conflictos
+            for t_name in servidor.transacciones:
+                if(servidor.transacciones[t_name] == "EN_PREPARACION"):
+                    otro = transacciones_activas[t_name]
+                    vars_T_write = obtener_var_W(transaccion_actual)
+                    vars_otro_read = obtener_var_R(otro)
+                    for var in vars_otro_read:
+                        if(var in vars_T_write):
+                            abortar(servidores_activos, transaccion_actual)
+                            break
+
+            # Ahora libero variables
+            vars_T = obtener_vars(transaccion_actual)
+            for var in vars_T:
+                servidor.var_reservadas.pop(var)
+        transaccion_actual.estado = "CONFIRMADA"
+        # TODO: Aplicar cambios a bd real
+
 if __name__ == "__main__":
     # Completar con tu implementación o crea más archivos y funciones
     # print(argv)
@@ -310,7 +354,7 @@ if __name__ == "__main__":
                 abortar(servidores_activos, transaccion_actual)
                 
             elif(comando == "COMMIT"):
-                if(transaccion not in transacciones_activas):
+                """ if(transaccion not in transacciones_activas):
                     # Salto, no está iniciado
                     continue
                 transaccion_actual = transacciones_activas[transaccion]
@@ -349,7 +393,8 @@ if __name__ == "__main__":
                         vars_T = obtener_vars(transaccion_actual)
                         for var in vars_T:
                             servidor.var_reservadas.pop(var)
-                    transaccion_actual.estado = "CONFIRMADA"
+                    transaccion_actual.estado = "CONFIRMADA" """
+                commit(transaccion, transacciones_activas, servidores_activos)
 
 
                         
