@@ -19,6 +19,7 @@ import enum
 from clases import Transaccion, Servidor
 from f_aux import procesar_input
 from comandos import begin, write, read, can_commit, abort, commit
+from consultas import read_possible_values, read_commit
 
 if __name__ == "__main__":
     test = argv[1]
@@ -71,11 +72,10 @@ if __name__ == "__main__":
             # Consulta
             nombre_var = operacion[2]
             if(comando == "READ_POSSIBLE_VALUES"):
-                # TODO
-                print(f" > Consulta: {comando} {nombre_var}")
+                read_possible_values(nombre_var, base_datos, transacciones_activas)
+
             elif(comando == "READ_COMMIT"):
-                # TODO
-                print(f" > Consulta: {comando} {nombre_var}")
+                read_commit(nombre_var, base_datos)
         
         elif("T" in tipo_operacion):
             transaccion = tipo_operacion
