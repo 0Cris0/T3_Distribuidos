@@ -6,6 +6,7 @@ from f_aux import obtener_var_R, obtener_var_W, obtener_vars
 
 from f_aux_comandos import forwards, backwards, validacion_1, validacion_2
 from f_aux_comandos import aplicar_cambios_globales, aplicar_cambios_locales, abortar_transaccion
+from f_aux_comandos import invalidar_transaccion
 
 def begin(t_activas: dict, tran: str, s_activos: dict, base_datos: dict, tiempo: int):
     if(tran in t_activas):
@@ -25,7 +26,7 @@ def begin(t_activas: dict, tran: str, s_activos: dict, base_datos: dict, tiempo:
         añadir_tran_servidores(nueva_transaccion, s_activos)
 
 
-def write(operacion: list, t_activas: dict, tran: str, tiempo: int):
+def write(operacion: list, t_activas: dict, tran: str, tiempo: int, s_activos: dict):
     argumentos = operacion[2].split(",")
     nombre_var = argumentos[0]
     valor_var = argumentos[1]
@@ -37,7 +38,7 @@ def write(operacion: list, t_activas: dict, tran: str, tiempo: int):
     if(transaccion_actual.estado in estados_saltar):
         return
     if(transaccion_actual.estado == "EN_PREPARACION"):
-        transaccion_actual.estado = "INVALIDA"
+        invalidar_transaccion(s_activos, transaccion_actual)
         return
     transaccion_actual.operaciones[tiempo] = {
         "comando": "WRITE",
@@ -51,7 +52,7 @@ def write(operacion: list, t_activas: dict, tran: str, tiempo: int):
         transaccion_actual.bd[nombre_var] = valor_var
 
 
-def read(operacion: list, t_activas: dict, tran: str, tiempo: int, base_datos: dict):
+def read(operacion: list, t_activas: dict, tran: str, tiempo: int, base_datos: dict, s_activos: dict):
     if(tran not in t_activas): # Salto, no está iniciado
         return
     transaccion_actual = t_activas[tran]
@@ -61,7 +62,7 @@ def read(operacion: list, t_activas: dict, tran: str, tiempo: int, base_datos: d
     nombre_var = operacion[2]
     print(f" - [{tran}] Comando: READ {nombre_var}")
     if(transaccion_actual.estado == "EN_PREPARACION"):
-        transaccion_actual.estado = "INVALIDA"
+        invalidar_transaccion(s_activos, transaccion_actual)
         return
     transaccion_actual.operaciones[tiempo] = {
         "comando": "READ",
@@ -69,7 +70,7 @@ def read(operacion: list, t_activas: dict, tran: str, tiempo: int, base_datos: d
     }
     if(nombre_var not in transaccion_actual.bd):
         if(nombre_var not in base_datos):
-            transaccion_actual.estado = "INVALIDA"
+            invalidar_transaccion(s_activos, transaccion_actual)
 
 
 def can_commit(tran: str, t_activas: dict, s_activos: dict, tipo_operacion: str, tiempo: int, operacion: list)->None:

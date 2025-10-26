@@ -71,7 +71,10 @@ def aplicar_cambios_locales(trans: Transaccion, servidor: Servidor):
         if(operacion["comando"]=="WRITE"):
             var = operacion["n_var"]
             valor = operacion["valor"]
-            servidor.bd[var] = valor
+            if(valor != "DELETE"):
+                servidor.bd[var] = valor
+            else:
+                servidor.bd.pop(var)
             # Ahora libero
             # if(var in servidor.var_reservadas):
             #     servidor.var_reservadas.pop(var)
@@ -82,7 +85,10 @@ def aplicar_cambios_globales(trans: Transaccion, base_datos: dict):
         if(operacion["comando"]=="WRITE"):
             var = operacion["n_var"]
             valor = operacion["valor"]
-            base_datos[var] = valor
+            if(valor != "DELETE"):
+                base_datos[var] = valor
+            else:
+                base_datos.pop(var)
 
 def abortar_transaccion(s_activos: dict, tran: Transaccion):
     # Cambio estado general
@@ -99,3 +105,11 @@ def abortar_transaccion(s_activos: dict, tran: Transaccion):
                         servidor.var_reservadas.pop(var)
                 # Cambiar estado en el servidor
                 almacenada.estado = "ABORTADA"
+
+def invalidar_transaccion(s_activos: dict, tran: Transaccion):
+    tran.estado = "INVALIDA"
+    for s_name in s_activos:
+        servidor = s_activos[s_name]
+        if(tran.nombre in servidor.transacciones):
+            almacenada = servidor.transacciones[tran.nombre]
+            almacenada.estado = "INVALIDA"

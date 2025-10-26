@@ -84,9 +84,9 @@ if __name__ == "__main__":
                 print(f" - [{transaccion}] Comando: {comando}")
                 begin(transacciones_activas, transaccion, servidores_activos, base_datos, tiempo)
             elif(comando == "WRITE"):
-                write(operacion, transacciones_activas, transaccion, tiempo)
+                write(operacion, transacciones_activas, transaccion, tiempo, servidores_activos)
             elif(comando == "READ"):
-                read(operacion, transacciones_activas, transaccion, tiempo, base_datos)
+                read(operacion, transacciones_activas, transaccion, tiempo, base_datos, servidores_activos)
             elif(comando == "CAN_COMMIT"):
                 can_commit(transaccion, transacciones_activas, servidores_activos, tipo_operacion, tiempo, operacion)
             elif(comando == "ABORT"):
