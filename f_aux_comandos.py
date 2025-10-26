@@ -71,7 +71,7 @@ def aplicar_cambios_locales(trans: Transaccion, servidor: Servidor):
         if(operacion["comando"]=="WRITE"):
             var = operacion["n_var"]
             valor = operacion["valor"]
-            servidor.base_datos[var] = valor
+            servidor.bd[var] = valor
             # Ahora libero
             # if(var in servidor.var_reservadas):
             #     servidor.var_reservadas.pop(var)

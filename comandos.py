@@ -152,7 +152,8 @@ def commit(tran: str, t_activas: dict, s_activos: dict, tiempo: int, base_datos:
             # Ahora libero variables
             vars_T = obtener_vars(transaccion_actual)
             for var in vars_T:
-                servidor.var_reservadas.pop(var)
+                if(var in servidor.var_reservadas):
+                    servidor.var_reservadas.pop(var)
         transaccion_actual.estado = "CONFIRMADA"
         transaccion_actual.t_commit = tiempo
         aplicar_cambios_globales(transaccion_actual, base_datos)

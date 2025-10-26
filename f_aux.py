@@ -21,14 +21,16 @@ def añadir_tran_servidores(tran: Transaccion, s_activos: dict) -> None:
 
 def obtener_var_R(tran: Transaccion) -> list:
     var_R = []
-    for operacion in tran.operaciones:
+    for tiempo_op in tran.operaciones:
+        operacion = tran.operaciones[tiempo_op]
         if(operacion["comando"] == "READ"):
             var_R.append(operacion["n_var"])
     return var_R
 
 def obtener_var_W(tran: Transaccion) -> list:
     var_W = []
-    for operacion in tran.operaciones:
+    for tiempo_op in tran.operaciones:
+        operacion = tran.operaciones[tiempo_op]
         if(operacion["comando"] == "WRITE"):
             var_W.append(operacion["n_var"])
     return var_W
