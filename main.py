@@ -21,20 +21,17 @@ class Transaccion:
     bd: dict
     nombre: str
     estado: str
+    t_inicio: int
+    t_can_commit: int
+    t_commit: int
+    operaciones: list
 
 @dataclasses.dataclass
 class Servidor:
     nombre: str
     transacciones: dict # Idea de que sea Trans-name, bool_can_commit, abort???
     var_reservadas: dict # Idea de 1resevar variables tal que (var, nombre_tas)
-""" Mi idea de momento para servidor, es crear esta Clase Servidor que tiene
-    - Nombre
-    - Transacciones
-    - Variables reservadas: dict
-    donde es un dict que tiene como key el nombre de una Tran Activa y su estado
-    cosa de poder decir que fue estado_base/abortada/ En_commit 
-    
-    Variables reservadas tal vez podría ser (var, transaccion_qu_la_reserva_nombre)"""
+    bd: dict
 
 def procesar_input(test: str) -> dict:
     with open(test, "r", encoding="utf-8") as f:
@@ -48,6 +45,170 @@ def procesar_input(test: str) -> dict:
     print(" =========")
     return json_instrucciones
 
+def añadir_servidores(tran: Transaccion, s_activos: dict) -> None:
+    for n_serv in s_activos:
+        server = s_activos[n_serv]
+        server.transacciones[tran.name] = "ABIERTO"
+
+def obtener_var_R(tran: Transaccion) -> list:
+    var_R = []
+    for operacion in tran.operaciones:
+        if(operacion["comando"] == "READ"):
+            var_R.append(operacion.n_var)
+    return var_R
+
+def obtener_var_W(tran: Transaccion) -> list:
+    var_W = []
+    for operacion in tran.operaciones:
+        if(operacion["comando"] == "WRITE"):
+            var_W.append(operacion.n_var)
+    return var_W
+
+def obtener_vars(trans: Transaccion) -> list:
+    var_T_read = obtener_var_R(trans)
+    var_T_write = obtener_var_W(trans)
+    vars_T = var_T_read + var_T_write
+    return vars_T
+
+def abortar(s_activos: dict, tran: Transaccion):
+    # Cambio estado general
+    tran.estado = "ABORTADA"
+    for s_name in s_activos:
+        servidor = s_activos[s_name]
+        if(tran.nombre in servidor.transacciones):
+            almacenada = servidor.transacciones[tran.nombre]
+            if(almacenada.estado == "EN_PREPARACION"):
+                # Liberar variables
+                vars_T = obtener_vars(tran)
+                for var in servidor.var_reservadas:
+                    if(var in vars_T):
+                        servidor.var_reservadas.pop(var)
+                # Cambiar estado en el servidor
+                almacenada.estado = "ABORTADA"
+
+def write(operacion: str, transacciones_activas: dict, transaccion: str):
+    argumentos = operacion[2].split(",")
+    nombre_var = argumentos[0]
+    valor_var = argumentos[1]
+    print(f" - [{transaccion}] Comando: {comando} {nombre_var} -> {valor_var}")
+    if(transaccion not in transacciones_activas): # Salto, no está iniciado
+        return
+
+    transaccion_actual = transacciones_activas[transaccion]
+    if(transaccion_actual.estado in estados_saltar):
+        return
+    if(transaccion_actual.estado == "EN_PREPARACION"):
+        transaccion_actual.estado = "INVALIDA"
+        return
+    transaccion_actual.operaciones.append({
+        "comando": "WRITE",
+        "n_var": nombre_var,
+        "valor": valor_var,
+        "tiempo": tiempo
+    })
+    if(nombre_var == "DELETE"):
+        if(nombre_var in transaccion_actual.bd):
+            transaccion_actual.bd.pop(nombre_var)
+    else:
+        transaccion_actual.bd[nombre_var] = valor_var
+
+def read(operacion: str, transacciones_activas: dict, transaccion: str):
+    if(transaccion not in transacciones_activas): # Salto, no está iniciado
+        return
+
+    transaccion_actual = transacciones_activas[transaccion]
+    if(transaccion_actual.estado in estados_saltar):
+        return
+    nombre_var = operacion[2]
+    print(f" - [{transaccion}] Comando: {comando} {nombre_var}")
+    if(transaccion_actual.estado == "EN_PREPARACION"):
+        transaccion_actual.estado = "INVALIDA"
+        return
+    transaccion_actual.operaciones.append({
+        "comando": "READ",
+        "n_var": nombre_var,
+        "tiempo": tiempo
+    })
+    if(nombre_var not in transaccion_actual.bd):
+        if(nombre_var not in base_datos):
+            transaccion_actual.estado = "INVALIDA"
+
+def validacion_1(tipo_validacion: str, trans: Transaccion, t_activos: dict) -> bool:
+    if(tipo_validacion == "forward"):
+        print("F")
+        vars_W = obtener_var_W(trans)
+        for t_name in t_activos:
+            if(t_name != trans.nombre):
+                otra_trans = t_activos[t_name]
+                for operacion in otra_trans:
+                    if(operacion["comando"] == "READ" and operacion["n_var"] in vars_W):
+                        if(operacion["tiempo"] <= trans.t_can_commit and trans.t_inicio <= operacion["tiempo"]):
+                            return False
+        return True
+    else:
+        print("B")
+        vars_R = obtener_var_R(trans)
+        for t_name in t_activos:
+            if(t_name != trans.nombre):
+                otra_trans = t_activos[t_name]
+                if(otra_trans.estado != "CONFIRMADA"):
+                    continue
+                for operacion in otra_trans:
+                    if(operacion["comando"] == "WRITE" and operacion["n_var"] in vars_W):
+                        if(operacion["tiempo"] <= trans.t_can_commit and trans.t_inicio <= operacion["tiempo"]):
+                            return False
+        return True
+
+def validacion_2(serv: Servidor, trans: Transaccion, t_activos: dict) -> bool:
+    for transaccion in serv.transacciones:
+        if(transaccion == trans.nombre):
+            continue
+        otro_estado = serv.transacciones[transaccion]
+        if(otro_estado != "EN_PREPARACION"):
+            continue
+        var_T_read = obtener_var_R(trans)
+        var_T_write = obtener_var_W(trans)
+        vars_T = var_T_read + var_T_write
+        for var in vars_T:
+            if(var in Servidor.var_reservadas):
+                return False
+            
+        # Ahora veo lo de generar conflicto
+        otra_t = t_activos[transaccion]
+        for operacion in otra_t.operaciones:
+            if(operacion["comando"] == "WRITE" and operacion["n_var"] in var_T_read):
+                return False
+    return True
+
+def can_commit(transaccion: str, transacciones_activas: dict, servidores_activos: dict, tipo_operacion: str)->None:
+    if(transaccion not in transacciones_activas): # Salto, no está iniciado
+        return
+    transaccion_actual = transacciones_activas[transaccion]
+    if(transaccion_actual.estado == "EN_PREPARACION"):
+        return
+    if(transaccion_actual.estado == estados_saltar):
+        return
+
+    transaccion_actual.t_can_commit = tiempo
+    nombre_servidor = operacion[2]
+    servidor_actual = servidores_activos[servidor]
+    print(f" - [{transaccion}] Comando: {comando} servidor {nombre_servidor}")
+    validacion1 = validacion_1(tipo_operacion, transaccion_actual, transacciones_activas)
+    validacion2 = validacion_2(servidor_actual, transaccion_actual, transacciones_activas)
+    if(validacion1 and validacion2):
+        # Proteger las variables
+        variables = obtener_vars(transaccion_actual)
+        for var in variables:
+            servidor_actual.var_reservadas[var] = transaccion_actual.nombre
+        # Cambiar estado
+        transaccion_actual.estado = "EN_PREPARACION"
+
+    condicion_forward = (not validacion1 and tipo_validacion == "forward")
+    condicion_2PC = (not validacion2)
+    if(condicion_forward or condicion_2PC):
+        return
+    else:
+        abortar(servidores_activos, transaccion_actual)
 
 if __name__ == "__main__":
     # Completar con tu implementación o crea más archivos y funciones
@@ -80,16 +241,20 @@ if __name__ == "__main__":
         """
     
     
-
+    tiempo = 0
+    estados_saltar = ["ABORTADA", "CONFIRMADA"]
 
     for servidor in servers:
         servidores_activos[servidor] = Servidor(
             nombre=servidor, 
             transacciones={}, 
-            var_reservadas={})
+            var_reservadas={},
+            bd=json.loads(json.dumps(base_datos))
+            )
 
 
     for operacion in operaciones:
+        tiempo += 1
         operacion = operacion.split(";")
         # print(operacion)
         tipo_operacion = operacion[0]
@@ -103,8 +268,10 @@ if __name__ == "__main__":
             elif(comando == "READ_COMMIT"):
                 # TODO
                 print(f" > Consulta: {comando} {nombre_var}")
+        
         elif("T" in tipo_operacion):
             transaccion = tipo_operacion
+
             # Comandos
             if(comando == "BEGIN"):
                 print(f" - [{transaccion}] Comando: {comando}")
@@ -116,103 +283,105 @@ if __name__ == "__main__":
                     nueva_transaccion = Transaccion(
                         bd=json.loads(json.dumps(base_datos)),
                         nombre=transaccion, 
-                        estado="ABIERTO"
+                        estado="ABIERTO",
+                        t_inicio=tiempo,
+                        t_can_commit=-1,
+                        t_commit=-1,
+                        operaciones=[]
                         )
-                    """ print(nueva_transaccion.nombre)
-                    print(nueva_transaccion.bd) """
                     transacciones_activas[transaccion] = nueva_transaccion
+                    añadir_servidores(nueva_transaccion, servidores_activos)
 
             elif(comando == "WRITE"):
-                if(transaccion not in transacciones_activas): # Salto, no está iniciado
-                    continue
-                if(transaccion_actual.estado == "ABORTADA"):
-                    continue
-                argumentos = operacion[2].split(",")
+                """ argumentos = operacion[2].split(",")
                 nombre_var = argumentos[0]
                 valor_var = argumentos[1]
                 print(f" - [{transaccion}] Comando: {comando} {nombre_var} -> {valor_var}")
+                if(transaccion not in transacciones_activas): # Salto, no está iniciado
+                    continue
+
                 transaccion_actual = transacciones_activas[transaccion]
+                if(transaccion_actual.estado in estados_saltar):
+                    continue
                 if(transaccion_actual.estado == "EN_PREPARACION"):
                     transaccion_actual.estado = "INVALIDA"
                     continue
+
+                transaccion_actual.operaciones.append({
+                    "comando": "WRITE",
+                    "n_var": nombre_var,
+                    "valor": valor_var,
+                    "tiempo": tiempo
+                })
                 if(nombre_var == "DELETE"):
                     if(nombre_var in transaccion_actual.bd):
                         transaccion_actual.bd.pop(nombre_var)
                 else:
-                        transaccion_actual.bd[nombre_var] = valor_var
-                # TODO: Lo relacionado a reflejarlo en la BD
-            # TODO: Ver si en cada comando hago check si es INVALIDO -> Continue o no
+                    transaccion_actual.bd[nombre_var] = valor_var """
+                write(operacion, transacciones_activas, transaccion)
+
             elif(comando == "READ"):
-                if(transaccion not in transacciones_activas): # Salto, no está iniciado
+                """ if(transaccion not in transacciones_activas): # Salto, no está iniciado
                     continue
-                if(transaccion_actual.estado == "ABORTADA"):
+
+                transaccion_actual = transacciones_activas[transaccion]
+                if(transaccion_actual.estado in estados_saltar):
                     continue
                 nombre_var = operacion[2]
                 print(f" - [{transaccion}] Comando: {comando} {nombre_var}")
-                transaccion_actual = transacciones_activas[transaccion]
                 if(transaccion_actual.estado == "EN_PREPARACION"):
                     transaccion_actual.estado = "INVALIDA"
                     continue
-                if(nombre_var in transaccion_actual.bd):
-                    valor = transaccion_actual.bd[nombre_var]
-                    # TODO: Ver qué hacer acá
-                else:
-                    if(nombre_var in base_datos):
-                        valor = base_datos[nombre_var]
-                        # TODO: Ver qué hacer acá
-                    else:
-                        transaccion_actual.estado = "INVALIDA"
+                transaccion_actual.operaciones.append({
+                    "comando": "READ",
+                    "n_var": nombre_var,
+                    "tiempo": tiempo
+                })
+                if(nombre_var not in transaccion_actual.bd):
+                    if(nombre_var not in base_datos):
+                        transaccion_actual.estado = "INVALIDA" """
+                read(operacion, transacciones_activas, transaccion)
 
             elif(comando == "CAN_COMMIT"):
-                if(transaccion not in transacciones_activas): # Salto, no está iniciado
+                """ if(transaccion not in transacciones_activas): # Salto, no está iniciado
                     continue
                 if(transaccion_actual.estado == "EN_PREPARACION"):
                     continue
-                if(transaccion_actual.estado == "ABORTADA"):
+                if(transaccion_actual.estado == estados_saltar):
                     continue
-                # TODO
+
                 transaccion_actual = transacciones_activas[transaccion]
+                transaccion_actual.t_can_commit = tiempo
                 nombre_servidor = operacion[2]
+                servidor_actual = servidores_activos[servidor]
                 print(f" - [{transaccion}] Comando: {comando} servidor {nombre_servidor}")
-                # TODO: validacion1 = Control de concurrencia
-                validacion1 = True
-                # TODO: validacion2 = 2PC
-                validacion2 = False
+                validacion1 = validacion_1(tipo_operacion, transaccion_actual, transacciones_activas)
+                validacion2 = validacion_2(servidor_actual, transaccion_actual, transacciones_activas)
                 if(validacion1 and validacion2):
-                    # TODO: Proteger las variables
-                    print("Proteger vars")
+                    # Proteger las variables
+                    variables = obtener_vars(transaccion_actual)
+                    for var in variables:
+                        servidor_actual.var_reservadas[var] = transaccion_actual.nombre
+                    # Cambiar estado
                     transaccion_actual.estado = "EN_PREPARACION"
+
+
                 condicion_forward = (not validacion1 and tipo_validacion == "forward")
                 condicion_2PC = (not validacion2)
                 if(condicion_forward or condicion_2PC):
-                    # TODO: Ver si esto esta bien
                     continue
                 else:
-                    # TODO: Abortar Transaccion
-                    print("Abortando transaccion")
+                    abortar(servidores_activos, transaccion_actual) """
+                can_commit(transaccion, transacciones_activas, servidores_activos, tipo_operacion)
 
             elif(comando == "ABORT"):
                 if(transaccion not in transacciones_activas):
                     # Salto, no está iniciado
                     continue
-                if(transaccion_actual.estado == "ABORTADA"):
-                    continue
-                # TODO
-                transaccion_actual = transacciones_activas[transaccion]
-                transaccion_actual.estado = "ABORTADA"
-                for servidor in servidores_activos.values():
-                    servidor.transacciones[transaccion_actual] = transaccion_actual.estado
-                    for var in servidor.var_reservadas:
-                        if( servidor.var_reservadas[var]==transaccion_actual.nombre):
-                            servidor.var_reservadas.pop(var)
-                            # Elimino del reservado
-                            # TODO: Ver si funciona
-                # Ver si funciona, en especial lo de no considerar, aunque creo que eso
-                # va en cCOMMIT
-
-
                 print(f" - [{transaccion}] Comando: {comando}")
-
+                transaccion_actual = transacciones_activas[transaccion]
+                abortar(servidores_activos, transaccion_actual)
+                
             elif(comando == "COMMIT"):
                 if(transaccion not in transacciones_activas):
                     # Salto, no está iniciado
