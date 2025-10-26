@@ -133,31 +133,44 @@ def read(operacion: str, transacciones_activas: dict, transaccion: str):
         if(nombre_var not in base_datos):
             transaccion_actual.estado = "INVALIDA"
 
+
+def forwards(trans: Transaccion, t_activos: dict)->bool:
+    print("Forwards validation")
+    vars_T_W = obtener_var_W(trans)
+    for t_name in t_activos:
+        if(t_name != trans.nombre):
+            otra_trans = t_activos[t_name]
+            if(otra_trans.estado not in ["EN_PREPARACION", "ABIERTA"]): # TODO: Ver si esto está bien
+                continue
+            for operacion in otra_trans:
+                if(operacion["comando"] == "READ" and operacion["n_var"] in vars_T_W):
+                    if(operacion["tiempo"] <= trans.t_can_commit and trans.t_inicio <= operacion["tiempo"]):
+                        return False
+    return True
+
+def backwards(trans: Transaccion, t_activos: dict)->bool:
+    print("Backwards validation")
+    vars_T_R = obtener_var_R(trans)
+    for t_name in t_activos:
+        if(t_name != trans.nombre):
+            otra_trans = t_activos[t_name]
+            if(otra_trans.estado != "CONFIRMADA"):
+                continue
+            for operacion in otra_trans:
+                if(operacion["comando"] == "WRITE" and operacion["n_var"] in vars_T_R):
+                    if(operacion["tiempo"] <= trans.t_can_commit and trans.t_inicio <= operacion["tiempo"]):
+                        return False
+    return True
+
+
+
+
+
 def validacion_1(tipo_validacion: str, trans: Transaccion, t_activos: dict) -> bool:
     if(tipo_validacion == "forward"):
-        print("F")
-        vars_W = obtener_var_W(trans)
-        for t_name in t_activos:
-            if(t_name != trans.nombre):
-                otra_trans = t_activos[t_name]
-                for operacion in otra_trans:
-                    if(operacion["comando"] == "READ" and operacion["n_var"] in vars_W):
-                        if(operacion["tiempo"] <= trans.t_can_commit and trans.t_inicio <= operacion["tiempo"]):
-                            return False
-        return True
+        return forwards(trans, t_activos)
     else:
-        print("B")
-        vars_R = obtener_var_R(trans)
-        for t_name in t_activos:
-            if(t_name != trans.nombre):
-                otra_trans = t_activos[t_name]
-                if(otra_trans.estado != "CONFIRMADA"):
-                    continue
-                for operacion in otra_trans:
-                    if(operacion["comando"] == "WRITE" and operacion["n_var"] in vars_W):
-                        if(operacion["tiempo"] <= trans.t_can_commit and trans.t_inicio <= operacion["tiempo"]):
-                            return False
-        return True
+        return backwards(trans, t_activos)
 
 def validacion_2(serv: Servidor, trans: Transaccion, t_activos: dict) -> bool:
     for transaccion in serv.transacciones:
@@ -179,6 +192,26 @@ def validacion_2(serv: Servidor, trans: Transaccion, t_activos: dict) -> bool:
             if(operacion["comando"] == "WRITE" and operacion["n_var"] in var_T_read):
                 return False
     return True
+
+def aplicar_cambios_locales(trans: Transaccion, servidor: Servidor):
+    for op in trans.operaciones:
+        operacion = trans.operaciones[op]
+        if(operacion["comando"]=="WRITE"):
+            var = operacion["n_var"]
+            valor = operacion["valor"]
+            servidor.bd[var] = valor
+            # Ahora libero
+            # if(var in servidor.var_reservadas):
+            #     servidor.var_reservadas.pop(var)
+
+def aplicar_cambios_globales(trans: Transaccion, bd: dict):
+    for op in trans.operaciones:
+        operacion = trans.operaciones[op]
+        if(operacion["comando"]=="WRITE"):
+            var = operacion["n_var"]
+            valor = operacion["valor"]
+            bd[var] = valor
+
 
 def can_commit(transaccion: str, transacciones_activas: dict, servidores_activos: dict, tipo_operacion: str)->None:
     if(transaccion not in transacciones_activas): # Salto, no está iniciado
@@ -227,16 +260,15 @@ def commit(transaccion: str, transacciones_activas: dict, servidores_activos: di
             contador+=1
     v1 = (contador >= len(servidores_activos)//2 + 1)
     v2 = (transaccion_actual.estado != "INVALIDA")
-    v3 = True
-    # TODO: Implementar el backwars aquí = v3
+    v3 = backwards(transaccion_actual, transacciones_activas)
+    
     if(v3 == False):
         abortar(servidores_activos, transaccion_actual)
     if(v1 == True and v2 == True and v3 == True):
         for s_name in servidores_activos:
             servidor = servidores_activos[s_name]
             servidor.transacciones[transaccion] = "CONFIRMADA"
-            # TODO: Aplicar cambios a servidor
-            # : Chequeo conflictos
+            aplicar_cambios_locales(transaccion_actual, servidor)
             for t_name in servidor.transacciones:
                 if(servidor.transacciones[t_name] == "EN_PREPARACION"):
                     otro = transacciones_activas[t_name]
@@ -252,7 +284,7 @@ def commit(transaccion: str, transacciones_activas: dict, servidores_activos: di
             for var in vars_T:
                 servidor.var_reservadas.pop(var)
         transaccion_actual.estado = "CONFIRMADA"
-        # TODO: Aplicar cambios a bd real
+        aplicar_cambios_globales(transaccion_actual, base_datos)
 
 if __name__ == "__main__":
     # Completar con tu implementación o crea más archivos y funciones
