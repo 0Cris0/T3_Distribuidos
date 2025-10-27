@@ -21,6 +21,9 @@ from f_aux import procesar_input
 from comandos import begin, write, read, can_commit, abort, commit
 from consultas import read_possible_values, read_commit
 
+    
+
+
 if __name__ == "__main__":
     test = argv[1]
     instrucciones = procesar_input(test)
@@ -61,6 +64,9 @@ if __name__ == "__main__":
             bd=json.loads(json.dumps(base_datos))
             )
 
+    log_consultas = ["##LOGS##"]
+    log_bd = ["##DATABASE##"]
+    log_stats = ["##STATS##"]
 
     for operacion in operaciones:
         tiempo += 1
@@ -72,10 +78,12 @@ if __name__ == "__main__":
             # Consulta
             nombre_var = operacion[2]
             if(comando == "READ_POSSIBLE_VALUES"):
-                read_possible_values(nombre_var, base_datos, transacciones_activas)
+                resultado = read_possible_values(nombre_var, base_datos, transacciones_activas)
+                log_consultas.append(resultado)
 
             elif(comando == "READ_COMMIT"):
-                read_commit(nombre_var, base_datos)
+                resultado = read_commit(nombre_var, base_datos)
+                log_consultas.append(resultado)
         
         elif("T" in tipo_operacion):
             transaccion = tipo_operacion
@@ -93,6 +101,52 @@ if __name__ == "__main__":
                 abort(transaccion, transacciones_activas, servidores_activos)
             elif(comando == "COMMIT"):
                 commit(transaccion, transacciones_activas, servidores_activos, tiempo, base_datos)
+    
+    if(len(log_consultas)==1):
+        log_consultas.append("No hubo logs")
+    for var in base_datos:
+        log_bd.append(f"{var}={base_datos[var]}")
+    if(len(log_bd)==1):
+        log_bd.append("No hay datos")
 
+    n_abierta = []
+    n_abortada = []
+    n_confirmada = []
+    n_en_preparacion = []
+    n_invalida = []
+    for t_name in transacciones_activas:
+        tran = transacciones_activas[t_name]
+        if(tran.estado == "ABIERTA"):
+            n_abierta.append(t_name)
+        elif(tran.estado == "ABORTADA"):
+            n_abortada.append(t_name)
+        elif(tran.estado == "CONFIRMADA"):
+            n_confirmada.append(t_name)
+        elif(tran.estado == "EN_PREPARACION"):
+            n_en_preparacion.append(t_name)
+        elif(tran.estado == "INVALIDA"):
+            n_invalida.append(t_name)
+    log_stats.append(f"ABIERTA={n_abierta}")
+    log_stats.append(f"ABORTADA={n_abortada}")
+    log_stats.append(f"CONFIRMADA={n_confirmada}")
+    log_stats.append(f"EN_PREPARACION={n_en_preparacion}")
+    log_stats.append(f"INVALIDA={n_invalida}")
+
+
+    ruta_test = argv[1]
+    nombre_base = os.path.basename(ruta_test)
+    nombre_sin_ext, _ = os.path.splitext(nombre_base)
+    nombre_salida = f"{nombre_sin_ext}.txt"
+
+    print(f"Archivo: {ruta_test} v/s Ruta_salida: {nombre_salida}")
+    ruta_salida = os.path.join("logs", nombre_salida)
+
+    with open(ruta_salida, "w", encoding="utf-8") as f:
+        for linea in log_consultas + log_bd + log_stats:
+            f.write(f"{linea}\n")
+
+
+        
+        
 
                         
