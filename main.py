@@ -73,7 +73,8 @@ if __name__ == "__main__":
             # Consulta
             nombre_var = operacion[2]
             if(comando == "READ_POSSIBLE_VALUES"):
-                resultado = read_possible_values(nombre_var, base_datos, transacciones_activas)
+                resultado = read_possible_values(nombre_var, 
+                base_datos, transacciones_activas)
                 logs_output.append(str(resultado))
             elif(comando == "READ_COMMIT"):
                 resultado = read_commit(nombre_var, base_datos)
@@ -84,17 +85,22 @@ if __name__ == "__main__":
             # Comandos
             if(comando == "BEGIN"):
                 print(f" - [{transaccion}] Comando: {comando}")
-                begin(transacciones_activas, transaccion, servidores_activos, base_datos, tiempo)
+                begin(transacciones_activas, transaccion, 
+                      servidores_activos, base_datos, tiempo)
             elif(comando == "WRITE"):
-                write(operacion, transacciones_activas, transaccion, tiempo, servidores_activos)
+                write(operacion, transacciones_activas, 
+                      transaccion, tiempo, servidores_activos)
             elif(comando == "READ"):
-                read(operacion, transacciones_activas, transaccion, tiempo, base_datos, servidores_activos)
+                read(operacion, transacciones_activas, transaccion, 
+                     tiempo, base_datos, servidores_activos)
             elif(comando == "CAN_COMMIT"):
-                can_commit(transaccion, transacciones_activas, servidores_activos, tipo_validacion, tiempo, operacion)
+                can_commit(transaccion, transacciones_activas, servidores_activos, 
+                           tipo_validacion, tiempo, operacion)
             elif(comando == "ABORT"):
                 abort(transaccion, transacciones_activas, servidores_activos)
             elif(comando == "COMMIT"):
-                commit(transaccion, transacciones_activas, servidores_activos, tiempo, base_datos)
+                commit(transaccion, transacciones_activas, 
+                       servidores_activos, tiempo, base_datos)
 
 # Escritura de resultados
     nombre_salida = f"{os.path.splitext(os.path.basename(test))[0]}.txt"

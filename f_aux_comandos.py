@@ -10,7 +10,7 @@ def forwards(trans: Transaccion, t_activos: dict)->bool:
     for t_name in t_activos:
         if(t_name != trans.nombre):
             otra_trans = t_activos[t_name]
-            if(otra_trans.estado not in ["EN_PREPARACION", "ABIERTA"]): # TODO: Ver si esto está bien
+            if(otra_trans.estado not in ["EN_PREPARACION", "ABIERTA"]):
                 continue
             for tiempo_op in otra_trans.operaciones:
                 operacion = otra_trans.operaciones[tiempo_op]

@@ -5,7 +5,8 @@ from f_aux import procesar_input, añadir_tran_servidores
 from f_aux import obtener_var_R, obtener_var_W, obtener_vars
 
 from f_aux_comandos import forwards, backwards, validacion_1, validacion_2
-from f_aux_comandos import aplicar_cambios_globales, aplicar_cambios_locales, abortar_transaccion
+from f_aux_comandos import aplicar_cambios_globales
+from f_aux_comandos import aplicar_cambios_locales, abortar_transaccion
 from f_aux_comandos import invalidar_transaccion
 
 def begin(t_activas: dict, tran: str, s_activos: dict, base_datos: dict, tiempo: int):
@@ -52,7 +53,8 @@ def write(operacion: list, t_activas: dict, tran: str, tiempo: int, s_activos: d
         transaccion_actual.bd[nombre_var] = valor_var
 
 
-def read(operacion: list, t_activas: dict, tran: str, tiempo: int, base_datos: dict, s_activos: dict):
+def read(operacion: list, t_activas: dict, tran: str, tiempo: int, 
+         base_datos: dict, s_activos: dict):
     if(tran not in t_activas): # Salto, no está iniciado
         return
     transaccion_actual = t_activas[tran]
@@ -73,7 +75,8 @@ def read(operacion: list, t_activas: dict, tran: str, tiempo: int, base_datos: d
             invalidar_transaccion(s_activos, transaccion_actual)
 
 
-def can_commit(tran: str, t_activas: dict, s_activos: dict, tipo_operacion: str, tiempo: int, operacion: list) -> None:
+def can_commit(tran: str, t_activas: dict, s_activos: dict, 
+               tipo_operacion: str, tiempo: int, operacion: list) -> None:
     if tran not in t_activas:  # Salto, no está iniciado
         return
     transaccion_actual = t_activas[tran]
@@ -114,7 +117,8 @@ def abort(tran: str, t_activas: dict, s_activos: dict):
     abortar_transaccion(s_activos, transaccion_actual)
 
 
-def commit(tran: str, t_activas: dict, s_activos: dict, tiempo: int, base_datos: dict) -> None:
+def commit(tran: str, t_activas: dict, s_activos: dict, 
+           tiempo: int, base_datos: dict) -> None:
     if tran not in t_activas:
         return
     transaccion_actual = t_activas[tran]
