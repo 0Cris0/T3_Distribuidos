@@ -24,4 +24,4 @@ que se encuentra disponible en GitHub discussions.
 ## Capturas de pantalla del uso de modelos de lenguaje.
 ![Referencia 1](capturas/captura1.png)
 ![Referencia 2](capturas/captura2.png)
-![Referencia 1](capturas/captura3.png)
+![Referencia 3](capturas/captura3.png)
