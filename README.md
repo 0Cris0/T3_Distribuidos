@@ -22,6 +22,6 @@ corregir errores, la interpretación de los mismos y aclaramiento de dudas, en c
 que se encuentra disponible en GitHub discussions.
 
 ## Capturas de pantalla del uso de modelos de lenguaje.
-![Referencia 1](capturas/captura1.png)
-![Referencia 2](capturas/captura2.png)
-![Referencia 3](capturas/captura3.png)
+![Ref 1](capturas/captura1.png)
+![Ref 2](capturas/captura2.png)
+![Ref 3](capturas/captura3.png)
