@@ -18,21 +18,23 @@ def forwards(trans: Transaccion, t_activos: dict)->bool:
                     if(tiempo_op <= trans.t_can_commit and trans.t_inicio <= tiempo_op):
                         return False
     return True
-
-def backwards(trans: Transaccion, t_activos: dict)->bool:
+# f_aux_comandos.py
+def backwards(trans: Transaccion, t_activos: dict) -> bool:
     print("Backwards validation")
-    vars_T_R = obtener_var_R(trans)
-    for t_name in t_activos:
-        if(t_name != trans.nombre):
-            otra_trans = t_activos[t_name]
-            if(otra_trans.estado != "CONFIRMADA"):
-                continue
-            for tiempo_op in otra_trans.operaciones:
-                operacion = otra_trans.operaciones[tiempo_op]
-                if(operacion["comando"] == "WRITE" and operacion["n_var"] in vars_T_R):
-                    if(tiempo_op <= trans.t_can_commit and trans.t_inicio <= tiempo_op):
-                        return False
+    vars_T_R = set(obtener_var_R(trans))
+    for t_name, otra_trans in t_activos.items():
+        if t_name == trans.nombre:
+            continue
+        if getattr(otra_trans, "estado", "") != "CONFIRMADA":
+            continue
+        vars_Tj_W = set(obtener_var_W(otra_trans))
+        if not (vars_T_R & vars_Tj_W):
+            continue
+        tj_commit = getattr(otra_trans, "t_commit", -1)
+        if tj_commit != -1 and trans.t_inicio <= tj_commit <= trans.t_can_commit:
+            return False
     return True
+
 
 
 def validacion_1(tipo_validacion: str, trans: Transaccion, t_activos: dict) -> bool:
@@ -53,7 +55,7 @@ def validacion_2(serv: Servidor, trans: Transaccion, t_activos: dict) -> bool:
         var_T_write = obtener_var_W(trans)
         vars_T = var_T_read + var_T_write
         for var in vars_T:
-            if(var in Servidor.var_reservadas):
+            if(var in serv.var_reservadas):
                 return False
             
         # Ahora veo lo de generar conflicto
@@ -96,20 +98,21 @@ def abortar_transaccion(s_activos: dict, tran: Transaccion):
     for s_name in s_activos:
         servidor = s_activos[s_name]
         if(tran.nombre in servidor.transacciones):
-            almacenada = servidor.transacciones[tran.nombre]
-            if(almacenada.estado == "EN_PREPARACION"):
+            estado = servidor.transacciones[tran.nombre]
+            if(estado == "EN_PREPARACION"):
                 # Liberar variables
                 vars_T = obtener_vars(tran)
                 for var in servidor.var_reservadas:
                     if(var in vars_T):
                         servidor.var_reservadas.pop(var)
                 # Cambiar estado en el servidor
-                almacenada.estado = "ABORTADA"
+                servidor.transacciones[tran.nombre] = "ABORTADA"
 
 def invalidar_transaccion(s_activos: dict, tran: Transaccion):
-    tran.estado = "INVALIDA"
+    if tran.estado not in ("ABORTADA", "CONFIRMADA"):
+        tran.estado = "INVALIDA"
     for s_name in s_activos:
         servidor = s_activos[s_name]
-        if(tran.nombre in servidor.transacciones):
-            almacenada = servidor.transacciones[tran.nombre]
-            almacenada.estado = "INVALIDA"
+        if tran.nombre in servidor.transacciones:
+            if servidor.transacciones[tran.nombre] not in ("ABORTADA", "CONFIRMADA"):
+                servidor.transacciones[tran.nombre] = "INVALIDA"
